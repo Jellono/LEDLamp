@@ -8,17 +8,13 @@
 #endif
 
 #define PIN 6
-#define CUBE_X  4
-#define CUBE_Y  4
-#define CUBE_Z  4
-#define BUTTON_1  3
-#define BUTTON_2  7
-#define DIAL_PIN_A 2
-#define DIAL_PIN_B 4
+#define CUBE_X  5
+#define CUBE_Y  5
+#define CUBE_Z  5
 
 #define ENCODER_CLK1         2      // This pin must have a minimum 0.47 uF capacitor
 #define ENCODER_DT1          4      // data pin
-#define ENCODER_SW1          3      // switch pin (active LOW)
+#define ENCODER_SW1          5      // switch pin (active LOW)
 #define MAX_ROTARIES1        2      // this example defines two rotaries for this encoder
 ky040 encoder1(ENCODER_CLK1, ENCODER_DT1, ENCODER_SW1, MAX_ROTARIES1 );
 
@@ -26,7 +22,7 @@ ky040 encoder1(ENCODER_CLK1, ENCODER_DT1, ENCODER_SW1, MAX_ROTARIES1 );
 #define DIAL_MIN  1
 #define DIAL_MAX  50
 
-#define BOX_TYPE_180_ROTATION
+//#define BOX_TYPE_180_ROTATION
 
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = Arduino pin number (most are valid)
@@ -36,7 +32,7 @@ ky040 encoder1(ENCODER_CLK1, ENCODER_DT1, ENCODER_SW1, MAX_ROTARIES1 );
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 //   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
-Adafruit_NeoPixel stripOfLEDs = Adafruit_NeoPixel(CUBE_X*CUBE_Y*CUBE_Z, PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel stripOfLEDs = Adafruit_NeoPixel(CUBE_X*CUBE_Y*CUBE_Z, PIN, NEO_RGB + NEO_KHZ800);
 
 
 
@@ -182,10 +178,6 @@ void setup() {
   dialBrightness = DIAL_MAX;
   solidBrightness = dialBrightness/10;
   modeStartTime = millis();
-//  pinMode(BUTTON_1, INPUT);
-//  pinMode(BUTTON_2, INPUT);
-//  pinMode(DIAL_PIN_A, INPUT);
-//  pinMode(DIAL_PIN_B, INPUT);
 
   stripOfLEDs.begin();
   stripOfLEDs.show(); // Initialize all pixels to 'off'
