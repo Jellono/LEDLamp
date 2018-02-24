@@ -38,32 +38,9 @@ ky040 encoder1(ENCODER_CLK1, ENCODER_DT1, ENCODER_SW1, MAX_ROTARIES1 );
 //   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
 Adafruit_NeoPixel stripOfLEDs = Adafruit_NeoPixel(CUBE_X*CUBE_Y*CUBE_Z, PIN, NEO_RGB + NEO_KHZ800);
 
+
+
 #include "EffectBase.h"
-#include "FireColumn.h"
-#include "CirclingBox.h"
-#include "ColorLayers.h"
-#include "FireFly.h"
-#include "OceanBox.h"
-#include "TreeBox.h"
-
-//Colorbands
-//Stars 
-//Fireworks
-//cyclone
-
-// IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
-// pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
-// and minimize distance between Arduino and first pixel.  Avoid connecting
-// on a live circuit...if you must, connect GND first.
-
-
-int lampMode;
-int timedFadeIntensity;
-unsigned long modeStartTime;
-unsigned long lastChangeTime;
-int solidBrightness;
-int dialBrightness;
-
 
 // Fill the dots one after the other with a color
 void colorWipe(uint32_t c, uint8_t wait) {
@@ -159,6 +136,30 @@ void testPlaneWipe(uint32_t color, int delayAmount) {
   }
 }
 
+#include "FireColumn.h"
+#include "CirclingBox.h"
+#include "ColorLayers.h"
+#include "FireFly.h"
+#include "OceanBox.h"
+#include "TreeBox.h"
+
+//Colorbands
+//Stars 
+//Fireworks
+//cyclone
+
+// IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
+// pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
+// and minimize distance between Arduino and first pixel.  Avoid connecting
+// on a live circuit...if you must, connect GND first.
+
+
+int lampMode;
+int timedFadeIntensity;
+unsigned long modeStartTime;
+unsigned long lastChangeTime;
+int solidBrightness;
+int dialBrightness;
 
 
 CirclingBox spriteBox;
