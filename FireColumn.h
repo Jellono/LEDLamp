@@ -91,6 +91,7 @@ FireBox::FireBox() {
 
 void FireBox::initialize(int s_brightness, int s_numElements, int s_controlParameter) {
   brightness = s_brightness;
+  if (brightness>DIAL_MAX) brightness = DIAL_MAX;
   numElements = s_numElements;
   controlParameter = s_controlParameter;
   
