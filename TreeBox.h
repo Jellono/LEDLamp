@@ -23,8 +23,8 @@ TreeBox::TreeBox() {
 
 void TreeBox::initialize(int s_intensity) {
   intensity = s_intensity;
-  strip.clear();
-  strip.show();
+  stripOfLEDs.clear();
+  stripOfLEDs.show();
   season = 0;
   oldTrunkHeight = 0.0;
   trunkHeight = 0.0;
@@ -55,7 +55,7 @@ void TreeBox::stepTree() {
 void TreeBox::applyTree() {
   int i;
   for (i=0; i<64; i++) {
-    strip.setPixelColor(i, 0);
+    stripOfLEDs.setPixelColor(i, 0);
   }
   
 }

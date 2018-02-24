@@ -1,3 +1,4 @@
+#define SMALLEST_CODESIZE
 #include <ky-040.h>
 
 #include <Adafruit_NeoPixel.h>
@@ -25,6 +26,7 @@ ky040 encoder1(ENCODER_CLK1, ENCODER_DT1, ENCODER_SW1, MAX_ROTARIES1 );
 #define DIAL_MIN  1
 #define DIAL_MAX  50
 
+//#define BOX_TYPE_180_ROTATION
 
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = Arduino pin number (most are valid)
@@ -34,7 +36,7 @@ ky040 encoder1(ENCODER_CLK1, ENCODER_DT1, ENCODER_SW1, MAX_ROTARIES1 );
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 //   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(CUBE_X*CUBE_Y*CUBE_Z, PIN, NEO_RGB + NEO_KHZ800);
+Adafruit_NeoPixel stripOfLEDs = Adafruit_NeoPixel(CUBE_X*CUBE_Y*CUBE_Z, PIN, NEO_RGB + NEO_KHZ800);
 
 #include "EffectBase.h"
 #include "FireColumn.h"
@@ -55,8 +57,6 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(CUBE_X*CUBE_Y*CUBE_Z, PIN, NEO_RGB +
 // on a live circuit...if you must, connect GND first.
 
 
-int button1State;
-int button2State;
 int lampMode;
 int timedFadeIntensity;
 unsigned long modeStartTime;
@@ -64,17 +64,12 @@ unsigned long lastChangeTime;
 int solidBrightness;
 int dialBrightness;
 
-int encoderPosCount = 0; 
-int pinALast;  
-int aVal;
-boolean bCW;
-
 
 // Fill the dots one after the other with a color
 void colorWipe(uint32_t c, uint8_t wait) {
-  for(uint16_t i=0; i<strip.numPixels(); i++) {
-    strip.setPixelColor(i, c);
-    strip.show();
+  for(uint16_t i=0; i<stripOfLEDs.numPixels(); i++) {
+    stripOfLEDs.setPixelColor(i, c);
+    stripOfLEDs.show();
   }
 }
 
@@ -83,12 +78,21 @@ uint32_t getRandomTwoChannelColor()
 {
   int channel = random(3);
   if (channel==0) {
-    return strip.Color(random(256), random(256), 0);
+    return stripOfLEDs.Color(random(256), random(256), 0);
   } else if (channel==1) {
-    return strip.Color(random(256), 0, random(256));
+    return stripOfLEDs.Color(random(256), 0, random(256));
   } else {
-    return strip.Color(0, random(256), random(256));
+    return stripOfLEDs.Color(0, random(256), random(256));
   }
+}
+
+uint32_t GenerateFireColor(int range) {
+  int divider = random(5)+2;
+  return stripOfLEDs.Color(range/divider, range, 0);
+}
+
+uint32_t GenerateNearlyWhite() {
+  return stripOfLEDs.Color(random(20,220), random(20,220), random(20,220));
 }
 
 
@@ -97,17 +101,73 @@ uint32_t getRandomTwoChannelColor()
 uint32_t Wheel(byte WheelPos, int brightness) {
   WheelPos = 255 - WheelPos;
   if(WheelPos < 85) {
-    return strip.Color((255 - WheelPos * 3)*brightness/DIAL_MAX, 0, (WheelPos * 3)*brightness/DIAL_MAX);
+    return stripOfLEDs.Color((255 - WheelPos * 3)*brightness/DIAL_MAX, 0, (WheelPos * 3)*brightness/DIAL_MAX);
   }
   if(WheelPos < 170) {
     WheelPos -= 85;
-    return strip.Color(0, (WheelPos * 3)*brightness/DIAL_MAX, (255 - WheelPos * 3)*brightness/DIAL_MAX);
+    return stripOfLEDs.Color(0, (WheelPos * 3)*brightness/DIAL_MAX, (255 - WheelPos * 3)*brightness/DIAL_MAX);
   }
   WheelPos -= 170;
-  return strip.Color((WheelPos * 3)*brightness/DIAL_MAX, (255 - WheelPos * 3)*brightness/DIAL_MAX, 0);
+  return stripOfLEDs.Color((WheelPos * 3)*brightness/DIAL_MAX, (255 - WheelPos * 3)*brightness/DIAL_MAX, 0);
 }
 
 
+void testPlaneWipe(uint32_t color, int delayAmount) {
+  int x, y, z, stripIndex, i;
+  EffectBase baseBox;
+  baseBox.initialize(100, 0, 0);
+  for (x=0; x<CUBE_X; x++) {
+    for (y=0; y<CUBE_Y; y++) {
+      for (z=0; z<CUBE_Z; z++) {
+        stripIndex = baseBox.xyzToStrip(x, y, z);
+        stripOfLEDs.setPixelColor(stripIndex, color);
+      }
+    }
+    stripOfLEDs.show();
+    delay(delayAmount);
+    for(i=0; i<stripOfLEDs.numPixels(); i++) {
+      stripOfLEDs.setPixelColor(i, stripOfLEDs.Color(0,0,0));
+    }
+  }
+
+  for (y=0; y<CUBE_Y; y++) {
+    for (x=0; x<CUBE_X; x++) {
+      for (z=0; z<CUBE_Z; z++) {
+        stripIndex = baseBox.xyzToStrip(x, y, z);
+        stripOfLEDs.setPixelColor(stripIndex, color);
+      }
+    }
+    stripOfLEDs.show();
+    delay(delayAmount);
+    for(i=0; i<stripOfLEDs.numPixels(); i++) {
+      stripOfLEDs.setPixelColor(i, stripOfLEDs.Color(0,0,0));
+    }
+  }
+  
+  for (z=0; z<CUBE_Z; z++) {
+    for (y=0; y<CUBE_Y; y++) {
+      for (x=0; x<CUBE_X; x++) {
+        stripIndex = baseBox.xyzToStrip(x, y, z);
+        stripOfLEDs.setPixelColor(stripIndex, color);
+      }
+    }
+    stripOfLEDs.show();
+    delay(delayAmount);
+    for(i=0; i<stripOfLEDs.numPixels(); i++) {
+      stripOfLEDs.setPixelColor(i, stripOfLEDs.Color(0,0,0));
+    }
+  }
+}
+
+
+
+CirclingBox spriteBox;
+ColorLayers colorLayerBox;
+FireFlyBox flyBox;
+OceanBox waveBox;
+FireBox fireBox;
+#define NUM_LIGHT_BOX_EFFECTS  5
+EffectBase *lightBoxEffect[NUM_LIGHT_BOX_EFFECTS];
 
 void setup() {
   // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
@@ -117,156 +177,115 @@ void setup() {
   // End of trinket special code
 
   lampMode = -1;
-  button1State = 0;
-  button2State = 0;
   timedFadeIntensity = 70;
-  dialBrightness = DIAL_MAX/2;
+  dialBrightness = DIAL_MAX;
   solidBrightness = dialBrightness/10;
-  int solidColorDone = 0;
   modeStartTime = millis();
-  pinMode(BUTTON_1, INPUT);
-  pinMode(BUTTON_2, INPUT);
-  pinMode(DIAL_PIN_A, INPUT);
-  pinMode(DIAL_PIN_B, INPUT);
+//  pinMode(BUTTON_1, INPUT);
+//  pinMode(BUTTON_2, INPUT);
+//  pinMode(DIAL_PIN_A, INPUT);
+//  pinMode(DIAL_PIN_B, INPUT);
 
-  pinALast = digitalRead(DIAL_PIN_A);   
-   
-  strip.begin();
-  strip.show(); // Initialize all pixels to 'off'
+  stripOfLEDs.begin();
+  stripOfLEDs.show(); // Initialize all pixels to 'off'
 
   int i; 
-  for(uint16_t i=0; i<strip.numPixels(); i++) {
-    strip.setPixelColor(i, strip.Color(0,0,0));
+  for(i=0; i<stripOfLEDs.numPixels(); i++) {
+    stripOfLEDs.setPixelColor(i, stripOfLEDs.Color(0,0,0));
   }
 
-  encoder1.AddRotaryCounter(1, DIAL_MAX, 0, DIAL_MAX/2, 1, false );
+
+  //Wipe through box
+  testPlaneWipe(stripOfLEDs.Color(255,0,0), 25);
+  testPlaneWipe(stripOfLEDs.Color(0,255,0), 25);
+  testPlaneWipe(stripOfLEDs.Color(0,0,255), 25);
+  testPlaneWipe(stripOfLEDs.Color(255,255,255), 25);
+
+  encoder1.AddRotaryCounter(1, DIAL_MAX, 0, DIAL_MAX, 1, false );
   encoder1.SetRotary(1);
   
-  Serial.begin(115200) ;   // write out the values. Make sure the Terminal is also set to 9600
-  while ( ! Serial ) ;
-
+  
+  fireBox.initialize(dialBrightness, 0, 0);
+  waveBox.initialize(dialBrightness, 0, 0);
+  flyBox.initialize(dialBrightness, 0, 0);
+  colorLayerBox.initialize(dialBrightness, 0, 0);
+  spriteBox.initialize(dialBrightness, 2*solidBrightness, 0);
+  
+  lightBoxEffect[0] = &fireBox;
+  lightBoxEffect[1] = &waveBox;
+  lightBoxEffect[2] = &flyBox;
+  lightBoxEffect[3] = &colorLayerBox;
+  lightBoxEffect[4] = &spriteBox;
+  
+  lampMode = 0;
+ 
 }
 
 
 
-
-CirclingBox spriteBox;
-ColorLayers colorLayerBox;
-FireFlyBox flyBox;
-OceanBox waveBox;
-FireBox fireBox;
-
 void loop() {
-  
-  //readDial();
 
-  if (lampMode==-1) {
-    fireBox.initialize(100, 1);
-    waveBox.initialize(5);
-    flyBox.initialize(1, 5);
-    colorLayerBox.initialize(solidBrightness);
-    spriteBox.initialize(1, 1, 2*solidBrightness);
-    lampMode = 0;
+  
+  if (lampMode<NUM_LIGHT_BOX_EFFECTS) {
+    lightBoxEffect[lampMode]->adjustBrightness(dialBrightness);
+    lightBoxEffect[lampMode]->effectStep(1.0);
+    lightBoxEffect[lampMode]->applyToStrip(stripOfLEDs);
+    stripOfLEDs.show();
   }
 
+/*  
   if (lampMode==0) {
-    fireBox.fireStep(1);
-    fireBox.applyToString();
-    strip.show();
+    fireBox.effectStep(1.0);
+    fireBox.applyToStrip(stripOfLEDs);
+    stripOfLEDs.show();
   } else if (lampMode==1) {
-    spriteBox.circleStep(1.0);
-    spriteBox.applyToString();
-    strip.show();
+    spriteBox.adjustBrightness(dialBrightness);
+    spriteBox.effectStep(0.3);
+    spriteBox.applyToStrip(stripOfLEDs);
+    stripOfLEDs.show();
   } else if (lampMode==2) {
     colorLayerBox.adjustBrightness(dialBrightness);
     colorLayerBox.effectStep(0.1);
-    colorLayerBox.applyToStrip(strip);
-    strip.show();
+    colorLayerBox.applyToStrip(stripOfLEDs);
+    stripOfLEDs.show();
   } else if (lampMode==3) {
-    flyBox.boxStep(1);
-    flyBox.applyToString();
-    strip.show();
+    flyBox.adjustBrightness(dialBrightness);
+    flyBox.effectStep(0.1);
+    flyBox.applyToStrip(stripOfLEDs);
+    stripOfLEDs.show();
   } else if (lampMode==4) {
-    waveBox.waveStep(1);
-    waveBox.applyToString();
-    strip.show();
+    waveBox.adjustBrightness(dialBrightness);
+    waveBox.effectStep(0.1);
+    waveBox.applyToStrip(stripOfLEDs);
+    stripOfLEDs.show();
   }
-  
-  if (encoder1.SwitchPressed()) {
-//    if (button1State==0) {
-//      button1State = 1;
-      lampMode++;
-      modeStartTime = millis();
-      lastChangeTime = modeStartTime;
-      timedFadeIntensity = dialBrightness*2;
-      
-/*      if (lampMode==1) {
-        spriteBox.initialize(1, 1, 2*solidBrightness);
-      }
-      if (lampMode==2) {
-        colorLayerBox.initialize(solidBrightness);
-      }
-      if (lampMode==3) {
-        flyBox.initialize(5, solidBrightness);
-      } 
-      if (lampMode==4) {
-        waveBox.initialize(5);
-      }
 */
-//    } else {
-//      button1State = 0;
-//    }
 
+  if (encoder1.SwitchPressed()) {
+    lampMode++;
+    modeStartTime = millis();
+    lastChangeTime = modeStartTime;
+    timedFadeIntensity = dialBrightness*2;
+     
     encoder1.SetChanged();
+    if (lampMode<0) lampMode = NUM_LIGHT_BOX_EFFECTS-1;
+    if (lampMode==NUM_LIGHT_BOX_EFFECTS) lampMode = 0;
+    
   }
+
 
   if (encoder1.HasRotaryValueChanged()) {
     dialBrightness = encoder1.GetRotaryValue(1);
-    Serial.print("Encoder 1 ROTARY_ID1: "); Serial.println(encoder1.GetRotaryValue(1));
 
     solidBrightness = dialBrightness / 10;
     if (solidBrightness<1) solidBrightness = 1;
     if (lampMode==0) {
       timedFadeIntensity = dialBrightness*2;
       if (timedFadeIntensity<4) timedFadeIntensity = 4;
-      fireBox.initialize(timedFadeIntensity, 1);
-    } else if (lampMode==1) {
-      spriteBox.initialize(1, 1, 2*solidBrightness);
-    } else if (lampMode==2) {
-//      colorLayerBox.adjustBrightness(solidBrightness);
-    } else if (lampMode==3) {
-      flyBox.initialize(5, solidBrightness);
-    } else if (lampMode==4) {
-      waveBox.initialize(solidBrightness);
+      fireBox.initialize(timedFadeIntensity, 0, 0);
     }
   }
 
-/*
-  if (digitalRead(BUTTON_2)==0) {
-    if (button2State==0) {
-      button2State = 1;
-      if (lampMode>0) {
-        solidBrightness = solidBrightness - 1;
-        if (solidBrightness==0) solidBrightness = 5;
-      }
-      if (lampMode==0) {
-        timedFadeIntensity = timedFadeIntensity - 10;
-        if (timedFadeIntensity < 1) timedFadeIntensity = 100;
-        fireBox.initialize(timedFadeIntensity, 1);
-      } else if (lampMode==1) {
-        spriteBox.initialize(1, 1, 2*solidBrightness);
-      } else if (lampMode==2) {
-        colorLayerBox.adjustBrightness(solidBrightness);
-      } else if (lampMode==3) {
-        flyBox.initialize(5, solidBrightness);
-      } else if (lampMode==4) {
-        waveBox.initialize(solidBrightness);
-      }
-    }
-  } else {
-    button2State = 0;
-  }
-*/
 
   unsigned long currentTime = millis();
   if ((currentTime - lastChangeTime)>216000) {
@@ -274,12 +293,11 @@ void loop() {
     if (lampMode==0) {
       timedFadeIntensity = timedFadeIntensity - 1;
       if (timedFadeIntensity < 4) timedFadeIntensity = 4;
-      fireBox.initialize(timedFadeIntensity, 1);
+      fireBox.initialize(timedFadeIntensity, 0, 0);
     } 
   }
+
     
-  if (lampMode<0) lampMode = 4;
-  if (lampMode>4) lampMode = 0;
 
 }
 

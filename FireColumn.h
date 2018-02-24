@@ -2,19 +2,13 @@
 
 
 
-uint32_t GenerateFireColor(int range) {
-  int divider = random(5)+2;
-  return strip.Color(range/divider, range, 0);
-}
 
 
-
-class FireColumn
+class FireColumn 
 {
   public:
     FireColumn();
-    void fadeStep(int columnNumber);
-    void applyToColumn(int columnNumber);
+    void fadeStep(int rowNumber, int columnNumber, EffectBase *baseClass, Adafruit_NeoPixel &thisStrip);
     void initialize(int s_intensityRange, int s_stepRange);
   private:
     int intensityRange;
@@ -39,7 +33,7 @@ void FireColumn::initialize(int s_intensityRange, int s_stepRange) {
 }
 
 
-void FireColumn::fadeStep(int columnNumber) {
+void FireColumn::fadeStep(int rowNumber, int columnNumber, EffectBase *baseClass, Adafruit_NeoPixel &thisStrip) {
   int r1, g1, b1;
   int r2, g2, b2;
   int nr, ng, nb;
@@ -57,15 +51,15 @@ void FireColumn::fadeStep(int columnNumber) {
     nr = (r2-r1)*currentStep/numSteps + r1;
     ng = (g2-g1)*currentStep/numSteps + g1;
     nb = (b2-b1)*currentStep/numSteps + b1;
-    currentColor[0] = strip.Color( nr, ng, nb);
+    currentColor[0] = thisStrip.Color( nr, ng, nb);
     for (layer=1; layer<CUBE_Z; layer++) {
-      currentColor[layer] = strip.Color( nr/(3*layer), ng/(3*layer), nb/(3*layer));
+      currentColor[layer] = thisStrip.Color( nr/(3*layer), ng/(3*layer), nb/(3*layer));
     }
     currentStep = currentStep + 1;
   } else {
     currentColor[0] = endColor;
     for (layer=1; layer<CUBE_Z; layer++) {
-      currentColor[layer] = strip.Color( r2/(3*layer), g2/(3*layer), b2/(3*layer));
+      currentColor[layer] = thisStrip.Color( r2/(3*layer), g2/(3*layer), b2/(3*layer));
     }
     startColor = endColor;
     endColor = GenerateFireColor(random(intensityRange));
@@ -74,40 +68,33 @@ void FireColumn::fadeStep(int columnNumber) {
   }
 
   for (layer=0; layer<CUBE_Z; layer++) {
-    if ((layer%2)==0) {
-      strip.setPixelColor(columnNumber + (CUBE_X*CUBE_Y)*layer, currentColor[layer]);
-    } else {
-      strip.setPixelColor(((CUBE_X*CUBE_Y)*(layer+1)-1)-columnNumber, currentColor[layer]);
-    }
+    int stripIndex = baseClass->xyzToStrip(rowNumber, columnNumber, layer);
+    thisStrip.setPixelColor(stripIndex, currentColor[layer]);
   }
 }
 
-void FireColumn::applyToColumn(int columnNumber) {
-}
 
-
-class FireBox
+class FireBox : public EffectBase
 {
   public:
     FireBox();
-    void fireStep(int time);
-    void applyToString();
-    void initialize(int s_intensity, int s_fireSpeed);
+    void effectStep(double timeStep);
+    void applyToStrip(Adafruit_NeoPixel &strip);
+    void initialize(int s_brightness, int s_numElements, int s_controlParameter);
    private:
-    int intensity;
-    int fireSpeed;
-    FireColumn column[CUBE_X*CUBE_Y];
+    FireColumn column[CUBE_X][CUBE_Y];
 };
 
 
 FireBox::FireBox() {
 }
 
-void FireBox::initialize(int s_intensity, int s_fireSpeed) {
-  intensity = s_intensity;
-  fireSpeed = s_fireSpeed;
+void FireBox::initialize(int s_brightness, int s_numElements, int s_controlParameter) {
+  brightness = s_brightness;
+  numElements = s_numElements;
+  controlParameter = s_controlParameter;
   
-  int i;
+  int i, j;
   double center_x, center_y;
   center_x = (double)(CUBE_X - 1) / 2.0;
   center_y = (double)(CUBE_Y - 1) / 2.0;
@@ -117,32 +104,32 @@ void FireBox::initialize(int s_intensity, int s_fireSpeed) {
   double maxDistance = sqrt(center_x*center_x + center_y*center_y);
   int newIntensity;
   int timeConstant;
-  for (int i=0; i<(CUBE_X*CUBE_Y); i++) {
-    curX = (double)(i%CUBE_X);
-    curY = (double)(i/CUBE_X);
-    
-    distanceToCenter = sqrt((curX-center_x)*(curX-center_x) + (curY-center_y)*(curY-center_y));
-    if (distanceToCenter<1.0) distanceToCenter = 0.0;
-    intensityAdjustment = 1.0 - (distanceToCenter/maxDistance);
-    
-    newIntensity = ((int)(intensityAdjustment*215.0 + 40.0))*intensity/100;
-    timeConstant = 500 + (int)(500.0*intensityAdjustment);
-    column[i].initialize(newIntensity, 40 + timeConstant/intensity);
+  for (i=0; i<CUBE_X; i++) {
+    for (j=0; j<CUBE_Y; j++) {
+      curX = (double)(i);
+      curY = (double)(j);
+      
+      distanceToCenter = sqrt((curX-center_x)*(curX-center_x) + (curY-center_y)*(curY-center_y));
+      if (distanceToCenter<1.0) distanceToCenter = 0.0;
+      intensityAdjustment = 1.0 - (distanceToCenter/maxDistance);
+      
+      newIntensity = ((int)(intensityAdjustment*215.0 + 40.0))*brightness/DIAL_MAX;
+      timeConstant = 500 + (int)(500.0*intensityAdjustment);
+      column[i][j].initialize(newIntensity, 40 + timeConstant/brightness);
+    }
   }
 }
 
-void FireBox::fireStep(int time) {
-  int i;
-  for (i=0; i<(CUBE_X*CUBE_Y); i++) {
-    column[i].fadeStep(i);
-  }
+void FireBox::effectStep(double timeStep) {
 }
 
 
-void FireBox::applyToString() {
-  int i;
-  for (i=0; i<(CUBE_X*CUBE_Y); i++) {
-    column[i].applyToColumn(i);
+void FireBox::applyToStrip(Adafruit_NeoPixel &strip) {
+  int i, j;
+  for (i=0; i<CUBE_X; i++) {
+    for (j=0; j<CUBE_Y; j++) {
+      column[i][j].fadeStep(i, j, this, strip);
+    }
   }
 }
 

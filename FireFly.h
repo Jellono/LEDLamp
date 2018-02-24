@@ -1,6 +1,6 @@
 #include "EffectBase.h"
 
-
+#define MAX_FLIES 8
 
 class FireFly
 {
@@ -8,13 +8,13 @@ class FireFly
     FireFly();
     void initialize(uint32_t s_color, double s_initialSpeed);
     bool stepFireFly();
-    void applyToString();
+    void applyToStrip(Adafruit_NeoPixel &strip, EffectBase *baseClass);
   private:
-    int r, g, b;
-    double x, y, z;
-    double mx, my, mz;
-    double flySpeed;
-    int straightFly;
+    byte r, g, b;
+    float x, y, z;
+    float mx, my, mz;
+    float flySpeed;
+    bool straightFly;
 };
 
 FireFly::FireFly() {
@@ -113,43 +113,40 @@ bool FireFly::stepFireFly() {
   return true;
 }
 
-void FireFly::applyToString() {
-  int i, j;
+void FireFly::applyToStrip(Adafruit_NeoPixel &strip, EffectBase *baseClass) {
+  int i, j, k;
 
   double curx, cury, curz;
   uint32_t currentColor;
-  for (j=0; j<CUBE_Z; j++) {
-    for (i=0; i<CUBE_X*CUBE_Y; i++) {
-      currentColor = strip.getPixelColor(i+j*CUBE_X*CUBE_Y);
-      cury = (double)(i/CUBE_X);
-      if ((i/CUBE_X)%2==0) {
-        curx = (double)(i%CUBE_X);
-      } else {
-        curx = ((double)(CUBE_X-1)) - (double)(i%CUBE_X);
-      }
-      curz = (double)j;
-  
-      // brightness will be scaled by distance
-      int addBrightness;
-      int n_r, n_g, n_b;
-      int a_r, a_g, a_b;
-      double distance = sqrt((curx-x)*(curx-x)+(cury-y)*(cury-y)+(curz-z)*(curz-z));
-      if (distance<1.0) {     
-        addBrightness = (int)(100.0 * (1.0-distance)*(1.0-distance));
-        a_r = r * addBrightness / 100;
-        a_g = g * addBrightness / 100;
-        a_b = b * addBrightness / 100;
-        n_r = ((0x00FF0000 & currentColor)>>16) + a_r;
-        n_g = ((0x0000FF00 & currentColor)>>8) + a_g;
-        n_b = ((0x000000FF & currentColor)) + a_b;
-        if (n_r>255) n_r = 255;
-        if (n_g>255) n_g = 255;
-        if (n_b>255) n_b = 255;
-        
-        int pixelNum;
-        if ((j%2)==0) pixelNum = i+j*CUBE_X*CUBE_Y;
-        else pixelNum = (CUBE_X*CUBE_Y-1-i)+j*CUBE_X*CUBE_Y;
-        strip.setPixelColor(pixelNum, strip.Color(n_r, n_g, n_b));
+  for (k=0; k<CUBE_Z; k++) {
+    for (j=0; j<CUBE_Y; j++) {
+      for (i=0; i<CUBE_X; i++) {
+        int stripIndex = baseClass->xyzToStrip(i, j, k);
+//        int stripIndex = i + j*CUBE_X + k*CUBE_X*CUBE_Y;
+        currentColor = strip.getPixelColor(stripIndex);
+        curx = (double)i;
+        cury = (double)j;
+        curz = (double)k;
+    
+        // brightness will be scaled by distance
+        int addBrightness;
+        int n_r, n_g, n_b;
+        int a_r, a_g, a_b;
+        double distance = sqrt((curx-x)*(curx-x)+(cury-y)*(cury-y)+(curz-z)*(curz-z));
+        if (distance<1.0) {     
+          addBrightness = (int)(100.0 * (1.0-distance)*(1.0-distance));
+          a_r = r * addBrightness / 100;
+          a_g = g * addBrightness / 100;
+          a_b = b * addBrightness / 100;
+          n_r = ((0x00FF0000 & currentColor)>>16) + a_r;
+          n_g = ((0x0000FF00 & currentColor)>>8) + a_g;
+          n_b = ((0x000000FF & currentColor)) + a_b;
+          if (n_r>255) n_r = 255;
+          if (n_g>255) n_g = 255;
+          if (n_b>255) n_b = 255;
+            
+          strip.setPixelColor(stripIndex, strip.Color(n_r, n_g, n_b));
+        }
       }
     }
   }
@@ -157,45 +154,57 @@ void FireFly::applyToString() {
   
 }
 
-class FireFlyBox
+class FireFlyBox : public EffectBase
 {
   public:
     FireFlyBox();
-    void boxStep(int time);
-    void applyToString();
-    void initialize(int s_intensity, int s_numFlies);
+    void effectStep(double timeStep);
+    void applyToStrip(Adafruit_NeoPixel &strip);
+    void initialize(int s_brightness, int s_numElements, int s_controlParameter);
+    void adjustBrightness(int newBrightness);
    private:
-    int intensity;
     int numFlies;
-    FireFly fly[12];
+    FireFly fly[MAX_FLIES];
 };
 
 FireFlyBox::FireFlyBox() {
 }
 
-void FireFlyBox::initialize(int s_intensity, int s_numFlies) {
-  intensity = s_intensity;
-  numFlies = s_numFlies;
+void FireFlyBox::adjustBrightness(int newBrightness) {
+  if (newBrightness!=brightness) {
+    brightness = newBrightness;  
+    numFlies = (brightness*MAX_FLIES)/DIAL_MAX;
+    for (int i=0; i<numFlies; i++) {
+      fly[i].initialize(GenerateNearlyWhite(), 0.005*numFlies);
+    }
+  }
+}
+
+void FireFlyBox::initialize(int s_brightness, int s_numElements, int s_controlParameter) {
+  brightness = s_brightness;  
+  numFlies = (brightness*MAX_FLIES)/DIAL_MAX;
+  numElements = s_numElements;
+  controlParameter = s_controlParameter;
+  
+  if (numFlies>MAX_FLIES) numFlies = MAX_FLIES;
 
   int i;
   for (i=0; i<numFlies; i++) {
-    fly[i].initialize(strip.Color(random(20,220), random(20,220), random(20,220)), 0.005*numFlies);
+    fly[i].initialize(GenerateNearlyWhite(), 0.005*numFlies);
   }
-  strip.clear();
-  strip.show();
 }
 
-void FireFlyBox::applyToString() {
+void FireFlyBox::applyToStrip(Adafruit_NeoPixel &strip) {
   int i;
   for (i=0; i<CUBE_X*CUBE_Y*CUBE_Z; i++) {
     strip.setPixelColor(i, 0);
   }
   for (i=0; i<numFlies; i++) {
-    fly[i].applyToString();
+    fly[i].applyToStrip(strip, this);
   }
 }
 
-void FireFlyBox::boxStep(int time) {
+void FireFlyBox::effectStep(double timeStep) {
   int i;
   for (i=0; i<numFlies; i++) {
     if (!fly[i].stepFireFly()) {

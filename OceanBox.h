@@ -1,17 +1,17 @@
 #include "EffectBase.h"
 
 
-class OceanBox
+class OceanBox : public EffectBase
 {
   public:
     OceanBox();
-    void waveStep(int time);
-    void applyToString();
-    void initialize(int s_intensity);
-    void drawColumn(int x, int y, double height);
+    void effectStep(double timeStep);
+    void applyToStrip(Adafruit_NeoPixel &strip);
+    void initialize(int s_brightness, int s_numElements, int s_controlParameter);
+    void adjustBrightness(int newBrightness);
    private:
+    void drawColumn(int x, int y, double height, Adafruit_NeoPixel &strip);
     void randomizeParameters();
-    int intensity;
     double amplitude;
     double curAmplitude;
     double xAngleStep;
@@ -42,17 +42,23 @@ void OceanBox::randomizeParameters() {
   }
 }
 
-void OceanBox::initialize(int s_intensity) {
-  intensity = s_intensity;
-  strip.clear();
-  strip.show();
+void OceanBox::adjustBrightness(int newBrightness) {
+  if (newBrightness!=brightness) {
+    brightness = newBrightness;
+  }
+}
+
+void OceanBox::initialize(int s_brightness, int s_numElements, int s_controlParameter) {
+  brightness = s_brightness;
+  numElements = s_numElements;
+  controlParameter = s_controlParameter;
   startAngle = 0.0;
   startTime = millis();
   curAmplitude = 0.0;
   randomizeParameters();
 }
 
-void OceanBox::drawColumn(int x, int y, double height)
+void OceanBox::drawColumn(int x, int y, double height, Adafruit_NeoPixel &strip)
 {
   int z = 0;
   int pixelNum;
@@ -64,12 +70,8 @@ void OceanBox::drawColumn(int x, int y, double height)
     green = 0;
     blue = 0;
     
-    if ((y%2)==0) pixelNum = x + y*CUBE_X;
-    else pixelNum = ((CUBE_X-1)-x) + y*CUBE_X;
-    
-    if ((z%2)==0) pixelNum = pixelNum + z*CUBE_X*CUBE_Y;
-    else pixelNum = (CUBE_X*CUBE_Y-1-pixelNum) + z*CUBE_X*CUBE_Y;
-    
+    pixelNum = xyzToStrip(x, y, z);
+        
     if ( height>(double)z ) {
       blue = 60;
     } 
@@ -81,11 +83,11 @@ void OceanBox::drawColumn(int x, int y, double height)
       blue = blue + (int)((adjProximity)*190.0);
     }
     if (blue>255) blue = 255;
-    strip.setPixelColor(pixelNum, strip.Color(green*intensity/5, red*intensity/5, blue*intensity/5));
+    strip.setPixelColor(pixelNum, strip.Color(green*brightness/DIAL_MAX, red*brightness/DIAL_MAX, blue*brightness/DIAL_MAX));
   }
 }
 
-void OceanBox::applyToString() {
+void OceanBox::applyToStrip(Adafruit_NeoPixel &strip) {
   int i;
   for (i=0; i<(CUBE_X*CUBE_Y*CUBE_Z); i++) {
     strip.setPixelColor(i, 0);
@@ -98,12 +100,12 @@ void OceanBox::applyToString() {
     for (x=0; x<CUBE_X; x++) {
       
       height = 1.0 + curAmplitude * sin(currentAngle + xAngleStep*x);
-      drawColumn(x, y, height);
+      drawColumn(x, y, height, strip);
     }
   }
 }
 
-void OceanBox::waveStep(int time) {
+void OceanBox::effectStep(double timeStep) {
   startAngle = startAngle + 0.1;
   
   curAmplitude = 0.0;

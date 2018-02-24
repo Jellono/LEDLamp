@@ -1,144 +1,175 @@
 #include "EffectBase.h"
 
+#define MAX_CIRCLING_SPRITES 10
 
 class BoxSprite
 {
   public:
     BoxSprite();
-    void initialize(uint32_t s_color, double s_spriteAngleSpeed, double s_spriteRadiusSpeed, int s_layer);
-    bool stepSprite();
-    void applyToString();
+    void initialize(uint32_t s_color, float s_spriteAngleSpeed, float s_spriteRadiusSpeed, float s_spriteLayerSpeed, float s_layer);
+    bool stepSprite(double timeStep);
+    uint32_t getColorAddition(int curx, int cury, int curz, uint32_t currentColor);
   private:
-    int r, g, b;
-    double spriteAngleSpeed;
-    double spriteRadiusSpeed;
-    int spriteLayer;
-    double angle;
-    double radius;
+    byte r, g, b;
+    float spriteAngleSpeed;
+    float spriteRadiusSpeed;
+    float spriteLayerSpeed;
+    float angle;
+    float radius;
+    float layer;
+    short x, y, z;
 };
 
 BoxSprite::BoxSprite() {
 }
 
-void BoxSprite::initialize(uint32_t s_color, double s_spriteAngleSpeed, double s_spriteRadiusSpeed, int s_layer) {
-  r = (0x00FF0000 & s_color)>>16;
-  g = (0x0000FF00 & s_color)>>8;
-  b = (0x000000FF & s_color);
+void BoxSprite::initialize(uint32_t s_color, float s_spriteAngleSpeed, float s_spriteRadiusSpeed, float s_spriteLayerSpeed, float s_layer) {
+  r = (byte)((0x00FF0000 & s_color)>>16);
+  g = (byte)((0x0000FF00 & s_color)>>8);
+  b = (byte)((0x000000FF & s_color));
   spriteAngleSpeed = s_spriteAngleSpeed;
   spriteRadiusSpeed = s_spriteRadiusSpeed;
-  spriteLayer = s_layer;
+  spriteLayerSpeed = s_spriteLayerSpeed;
   angle = 0.0;
   radius = 0.0;
+  layer = s_layer;
 }
 
-bool BoxSprite::stepSprite() {
-  angle += spriteAngleSpeed;
-  radius += spriteRadiusSpeed;
-  
-  double maxRadius = (double)(CUBE_X + CUBE_Y)/2.0 * 0.70;
-  
-  if (radius<2.75) return true;
+double maxRadius = (double)(CUBE_X + CUBE_Y)/2.0 * 0.70;
+
+bool BoxSprite::stepSprite(double timeStep) {
+  angle += spriteAngleSpeed*timeStep;
+  radius += spriteRadiusSpeed*timeStep;
+  layer += spriteLayerSpeed*timeStep;
+    
+  x = (short)(20.0*(radius*cos(angle)));
+  y = (short)(20.0*(radius*sin(angle)));
+  z = (short)(20.0*layer);
+    
+  if (radius<maxRadius && layer<((float)CUBE_Z)) return true;
   else return false;
 }
 
-void BoxSprite::applyToString() {
-  double x, y;
-  x = (radius*cos(angle));
-  y = (radius*sin(angle));
+uint32_t BoxSprite::getColorAddition(int curx, int cury, int curz, uint32_t currentColor) {
+  
+  if (abs((int)layer-curz)>1.0) return currentColor;
   
   int i;
-  double curx, cury;
-  uint32_t currentColor;
-  for (i=0; i<CUBE_X*CUBE_Y; i++) {
-    currentColor = strip.getPixelColor(i);
-    cury = (double)(i/CUBE_X);
-    if ((i/CUBE_X)%2==0) {
-      curx = (double)(i%CUBE_X);
-    } else {
-      curx = (double)(CUBE_X-1) - (double)(i%CUBE_X);
-    }
-    curx = curx - (double)(CUBE_X-1)/2.0;
-    cury = cury - (double)(CUBE_Y-1)/2.0;    
-
-    // brightness will be scaled by distance
-    int addBrightness;
-    int n_r, n_g, n_b;
-    int a_r, a_g, a_b;
-    double distance = sqrt((curx-x)*(curx-x)+(cury-y)*(cury-y));
-    if (distance<1.0) {     
-      addBrightness = (int)(100.0 * (1.0-distance));
-      a_r = r * addBrightness / 100;
-      a_g = g * addBrightness / 100;
-      a_b = b * addBrightness / 100;
-      n_r = ((0x00FF0000 & currentColor)>>16) + a_r;
-      n_g = ((0x0000FF00 & currentColor)>>8) + a_g;
-      n_b = ((0x000000FF & currentColor)) + a_b;
-      if (n_r>255) n_r = 255;
-      if (n_g>255) n_g = 255;
-      if (n_b>255) n_b = 255;
-      
-      int pixelNum;
-      if ((spriteLayer%2)==0) pixelNum = i+spriteLayer*CUBE_X*CUBE_Y;
-      else pixelNum = (CUBE_X*CUBE_Y-1-i)+spriteLayer*CUBE_X*CUBE_Y;
-      strip.setPixelColor(pixelNum, strip.Color(n_r, n_g, n_b));
-    }
-  }
- 
+  short fx, fy, fz;
   
+  fx = x - (short)(20.0*((float)curx - (float)(CUBE_X-1)/2.0));
+  fy = y - (short)(20.0*((float)cury - (float)(CUBE_Y-1)/2.0));
+  fz = z - (short)(20*curz);
+  fx=fx*fx;
+  fy=fy*fy;
+  fz=fz*fz;
+  i = (fx+fy+fz);
+  
+  // brightness will be scaled by distance
+  int addBrightness;
+  int n_r, n_g, n_b;
+  int a_r, a_g, a_b;
+  double distance = ((double)i/400.0);
+
+  uint32_t newcolor = 0;
+  if (distance<1.0) {     
+    n_r = ((0x00FF0000 & currentColor)>>16);
+    n_g = ((0x0000FF00 & currentColor)>>8);
+    n_b = ((0x000000FF & currentColor));
+
+    addBrightness = (int)(100.0 * (1.0-distance));
+    a_r = ((int)r) * addBrightness / 100;
+    a_g = ((int)g) * addBrightness / 100;
+    a_b = ((int)b) * addBrightness / 100;
+    n_r = n_r + a_r;
+    n_g = n_g + a_g;
+    n_b = n_b + a_b;
+    if (n_r>255) n_r = 255;
+    if (n_g>255) n_g = 255;
+    if (n_b>255) n_b = 255;
+    newcolor = ((uint32_t)n_r)<<16 | ((uint32_t)n_g)<<8 | n_b;
+  } else {
+    newcolor = currentColor;
+  }
+  
+  return newcolor;  
 }
 
-class CirclingBox
+class CirclingBox : public EffectBase
 {
   public:
     CirclingBox();
-    void circleStep(int time);
-    void applyToString();
-    void initialize(int s_intensity, int s_circleSpeed, int s_numSprites);
+    void effectStep(double timeStep);
+    void applyToStrip(Adafruit_NeoPixel &strip);
+    void initialize(int s_brightness, int s_numElements, int s_controlParameter);
+    void adjustBrightness(int newBrightness);
    private:
-    int intensity;
-    int circleSpeed;
-    int nextSpriteLayer = 0;
     int numSprites;
-    BoxSprite sprite[12];
+    BoxSprite sprite[MAX_CIRCLING_SPRITES];
 };
 
-CirclingBox::CirclingBox() {
+CirclingBox::CirclingBox() : EffectBase() {
 }
 
-void CirclingBox::initialize(int s_intensity, int s_circleSpeed, int s_numSprites) {
-  intensity = s_intensity;
-  circleSpeed = s_circleSpeed;
-  nextSpriteLayer = 0;
-  numSprites = s_numSprites;
+void CirclingBox::initialize(int s_brightness, int s_numElements, int s_controlParameter) {
+  brightness = s_brightness;
+  numSprites = s_numElements;
+  if (numSprites>MAX_CIRCLING_SPRITES) numSprites = MAX_CIRCLING_SPRITES;
   int i;
+  
   for (i=0; i<numSprites; i++) {
-    sprite[i].initialize(getRandomTwoChannelColor(), ((double)random(1000))/10000.0, ((double)random(100))/100000.0, nextSpriteLayer);
-    nextSpriteLayer += 1;
-    if (nextSpriteLayer>(CUBE_Z-1)) nextSpriteLayer = 0;
-  }
-  strip.clear();
-  strip.show();
-}
-
-void CirclingBox::applyToString() {
-  int i;
-  for (i=0; i<(CUBE_X*CUBE_Y*CUBE_Z); i++) {
-    strip.setPixelColor(i, 0);
-  }
-  for (i=0; i<numSprites; i++) {
-    sprite[i].applyToString();
+    float s_angle, s_radius, s_layer, startLayer;
+    s_angle = 0.5 + ((double)random(500))/1000.0;
+    s_radius = 0.005 + ((double)random(100))/10000.0;
+    s_layer = 0.025 + ((double)random(150))/1000.0;
+    startLayer = (float)i * ((float)CUBE_Z / (float)MAX_CIRCLING_SPRITES);
+    sprite[i].initialize(getRandomTwoChannelColor(), s_angle, s_radius, s_layer, startLayer);
   }
 }
 
-void CirclingBox::circleStep(int time) {
+
+void CirclingBox::adjustBrightness(int newBrightness) {
+  if (newBrightness!=brightness) {
+    int newNumElements = (brightness*MAX_CIRCLING_SPRITES)/DIAL_MAX;
+    initialize(newBrightness, newNumElements, 0);
+  }
+}
+
+
+void CirclingBox::applyToStrip(Adafruit_NeoPixel &strip) {
   int i;
-  for (i=0; i<numSprites; i++) {
-    if (!sprite[i].stepSprite()) {
-      sprite[i].initialize(getRandomTwoChannelColor(), ((double)random(1000))/10000.0, ((double)random(100))/100000.0, nextSpriteLayer);
-      nextSpriteLayer += 1;
-      if (nextSpriteLayer>(CUBE_Z-1)) nextSpriteLayer = 0;
+  
+  int x, y, z;
+  uint32_t currentColor;
+  int pixelNum;
+  for (z=0; z<CUBE_Z; z++) {
+    for (y=0; y<CUBE_Y; y++) {
+      for (x=0; x<CUBE_X; x++) {
+        pixelNum = xyzToStrip(x, y, z);
+        currentColor = 0;
+        for (i=0; i<numSprites; i++) {
+          currentColor = sprite[i].getColorAddition(x, y, z, currentColor);
+        }
+        strip.setPixelColor(pixelNum, currentColor);
+      }
     }
-  }
+  } 
+
+  
+}
+
+void CirclingBox::effectStep(double timeStep) {
+  int i;
+  for (i=0; i<numSprites; i++) {
+    if (!sprite[i].stepSprite(timeStep)) {
+      float s_angle, s_radius, s_layer;
+      s_angle = 0.5 + ((double)random(500))/1000.0;
+      s_radius = 0.015 + ((double)random(100))/10000.0;
+      s_layer = 0.025 + ((double)random(150))/1000.0;
+      sprite[i].initialize(getRandomTwoChannelColor(), s_angle, s_radius, s_layer, 0.0);
+    }
+  } 
+
 }
 
 
