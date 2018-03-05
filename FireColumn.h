@@ -81,6 +81,7 @@ class FireBox : public EffectBase
     void effectStep(double timeStep);
     void applyToStrip(Adafruit_NeoPixel &strip);
     void initialize(int s_brightness, int s_numElements, int s_controlParameter);
+    void adjustBrightness(int newBrightness);
    private:
     FireColumn column[CUBE_X][CUBE_Y];
 };
@@ -92,6 +93,7 @@ FireBox::FireBox() {
 void FireBox::initialize(int s_brightness, int s_numElements, int s_controlParameter) {
   brightness = s_brightness;
   if (brightness>DIAL_MAX) brightness = DIAL_MAX;
+  if (brightness<5) brightness = 5;
   numElements = s_numElements;
   controlParameter = s_controlParameter;
   
@@ -120,6 +122,15 @@ void FireBox::initialize(int s_brightness, int s_numElements, int s_controlParam
     }
   }
 }
+
+
+void FireBox::adjustBrightness(int newBrightness) {
+  if (newBrightness<5) newBrightness = 5;
+  if (newBrightness!=brightness) {
+    initialize(newBrightness, 0, 0);
+  }
+}
+
 
 void FireBox::effectStep(double timeStep) {
 }

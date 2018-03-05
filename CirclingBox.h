@@ -113,7 +113,8 @@ CirclingBox::CirclingBox() : EffectBase() {
 
 void CirclingBox::initialize(int s_brightness, int s_numElements, int s_controlParameter) {
   brightness = s_brightness;
-  numSprites = s_numElements;
+  numSprites = (brightness*MAX_CIRCLING_SPRITES)/DIAL_MAX;
+  if (numSprites<1) numSprites = 1;
   if (numSprites>MAX_CIRCLING_SPRITES) numSprites = MAX_CIRCLING_SPRITES;
   int i;
   
@@ -130,8 +131,7 @@ void CirclingBox::initialize(int s_brightness, int s_numElements, int s_controlP
 
 void CirclingBox::adjustBrightness(int newBrightness) {
   if (newBrightness!=brightness) {
-    int newNumElements = (brightness*MAX_CIRCLING_SPRITES)/DIAL_MAX;
-    initialize(newBrightness, newNumElements, 0);
+    initialize(newBrightness, 0, 0);
   }
 }
 
